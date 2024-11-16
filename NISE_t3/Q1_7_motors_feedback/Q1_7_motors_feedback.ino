@@ -1,6 +1,13 @@
 #include <DynamixelSDK.h>
 #include <math.h>
 
+
+// Feedback
+#define SENSOR_ONE_PIN                 A0
+#define SENSOR_TWO_PIN                 A1
+#define SENSOR_THREE_PIN               A2
+#define SENSOR_FOUR_PIN                A3
+
 // Dynamixel Control Table Addresses
 #define ADDR_AX_ID                     3
 #define ADDR_AX_TORQUE_LIMIT           34
@@ -50,8 +57,6 @@ struct Neuron {
 
 
 struct Motor {
-  int angle_limit_cw;
-  int angle_limit_ccw;
   int left_neuron_id;
   int right_neuron_id;
   double goalPosition = 512;
@@ -159,6 +164,38 @@ void update_network(void) {
   }
 }
 
+
+// =========================== FEEDBACK FUNCTION =========================================
+
+void check_sensors()
+{
+  double LEFT_THR = 512; // THRESHOLDS AFTER WHICH WE TAKE SOME ACTION
+  double RIGHT_THR = 512;
+  double A2_THR = 512;
+  double A3_THR = 512;
+
+  LEFT_SENSOR = analogRead(SENSOR_ONE_PIN);
+  RIGHT_SENSOR = analogRead(SENSOR_TWO_PIN);
+  a2 = analogRead(SENSOR_THREE_PIN);
+  a3 = analogRead(SENSOR_FOUR_PIN);
+
+  if (LEFT_SENSOR > A0_THRESHOLD){
+    motors[0].goalPosition = 1023; // if left sensor is triggered, turn head right
+  }
+  else (RIGHT_SENSOR > RIGHT_THR)
+  {
+    motors[0].goalPosition = 0; // if right sensor is triggered, turn head left
+  }
+  
+}
+
+
+
+
+
+
+
+// ==========================================================================================
 void setup() {
   Serial.begin(115200);
   portHandler = dynamixel::PortHandler::getPortHandler(DEVICENAME);
@@ -173,10 +210,6 @@ void setup() {
 
   
   // SETUP ALL MOTORS
-
-  // Manually define motor angle for everything
-  int ANGLE_LIMITS_CW[NUM_MOTORS] = {512 - 20, 512 - 55, 512 - 90, 512  - 125, 512 - 160, 512 -  195, 512 - 220}; // below 512
-  int ANGLE_LIMITS_CCW[NUM_MOTORS] = {512 + 20, 512+55, 512 + 90, 512  + 125, 512 + 160, 512 +  195, 512 + 220};// above 512
   for (int i = 0; i < NUM_MOTORS; i++)
   {
     int motor_ix = i + 1;
@@ -186,10 +219,8 @@ void setup() {
     // packetHandler->write2ByteTxRx(portHandler, motor_ix, ADDR_AX_ANGLE_LIMIT_CW, ANGLE_LIMIT_HIGH, &dxl_error);
     // packetHandler->write2ByteTxRx(portHandler, motor_ix, ADDR_AX_ANGLE_LIMIT_CCW, ANGLE_LIMIT_LOW, &dxl_error);
 
-    //packetHandler->write2ByteTxRx(portHandler, motor_ix, ADDR_AX_ANGLE_LIMIT_CW, 512 - 20 - i*65 , &dxl_error);
-    //packetHandler->write2ByteTxRx(portHandler, motor_ix, ADDR_AX_ANGLE_LIMIT_CCW, 512 + 20 + i*65, &dxl_error);
-    packetHandler->write2ByteTxRx(portHandler, motor_ix, ADDR_AX_ANGLE_LIMIT_CW, ANGLE_LIMITS_CW[i], &dxl_error);
-    packetHandler->write2ByteTxRx(portHandler, motor_ix, ADDR_AX_ANGLE_LIMIT_CCW, ANGLE_LIMITS_CCW[i], &dxl_error);
+    packetHandler->write2ByteTxRx(portHandler, motor_ix, ADDR_AX_ANGLE_LIMIT_CW, 512 - 20 - i*65 , &dxl_error);
+    packetHandler->write2ByteTxRx(portHandler, motor_ix, ADDR_AX_ANGLE_LIMIT_CCW, 512 + 20 + i*65, &dxl_error);
 
     motors[i].left_neuron_id = i;
     motors[i].right_neuron_id = i + 7; // such that for motor 1 corresponding neurons are 1 and 8, etc  
@@ -249,6 +280,9 @@ void loop() {
       {
         motors[i].goalPosition = mapFloat(right.y, 0, 1, 512, 1023); // 512 is a neutral position, 1023 is rightmost position
       }
+
+      if (i == 0):
+        check_sensors(); // if something relevant is detected, overwrite motror goal positioin
       
       int present_position = 0;
         // Write the goal position to the motor

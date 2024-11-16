@@ -47,11 +47,9 @@ struct Neuron {
 } neurons[NUM_NEURONS];
 
 
-
-
 struct Motor {
-  int angle_limit_cw;
-  int angle_limit_ccw;
+  int position_limit_cw;
+  int position_limit_ccw;
   int left_neuron_id;
   int right_neuron_id;
   double goalPosition = 512;
@@ -174,34 +172,27 @@ void setup() {
   
   // SETUP ALL MOTORS
 
-  // Manually define motor angle for everything
-  int ANGLE_LIMITS_CW[NUM_MOTORS] = {512 - 20, 512 - 55, 512 - 90, 512  - 125, 512 - 160, 512 -  195, 512 - 220}; // below 512
-  int ANGLE_LIMITS_CCW[NUM_MOTORS] = {512 + 20, 512+55, 512 + 90, 512  + 125, 512 + 160, 512 +  195, 512 + 220};// above 512
+  // MOTOR ANGLE IS +- 75 DEGREES, POSITION LIMIT IS INDIVIDUAL
+  int POS_LIMITS_CW[NUM_MOTORS] = {512 - 20, 512 - 55, 512 - 90, 512  - 125, 512 - 160, 512 -  195, 512 - 220}; // below 512
+  int POS_LIMITS_CCW[NUM_MOTORS] = {512 + 20, 512+55, 512 + 90, 512  + 125, 512 + 160, 512 +  195, 512 + 220};// above 512
   for (int i = 0; i < NUM_MOTORS; i++)
   {
     int motor_ix = i + 1;
     packetHandler->write2ByteTxRx(portHandler, motor_ix, ADDR_AX_TORQUE_LIMIT, FULL_TORQUE, &dxl_error);
     packetHandler->write1ByteTxRx(portHandler, motor_ix, ADDR_AX_TORQUE_ENABLE, TORQUE_ENABLE, &dxl_error);
     
-    // packetHandler->write2ByteTxRx(portHandler, motor_ix, ADDR_AX_ANGLE_LIMIT_CW, ANGLE_LIMIT_HIGH, &dxl_error);
-    // packetHandler->write2ByteTxRx(portHandler, motor_ix, ADDR_AX_ANGLE_LIMIT_CCW, ANGLE_LIMIT_LOW, &dxl_error);
-
-    //packetHandler->write2ByteTxRx(portHandler, motor_ix, ADDR_AX_ANGLE_LIMIT_CW, 512 - 20 - i*65 , &dxl_error);
-    //packetHandler->write2ByteTxRx(portHandler, motor_ix, ADDR_AX_ANGLE_LIMIT_CCW, 512 + 20 + i*65, &dxl_error);
-    packetHandler->write2ByteTxRx(portHandler, motor_ix, ADDR_AX_ANGLE_LIMIT_CW, ANGLE_LIMITS_CW[i], &dxl_error);
-    packetHandler->write2ByteTxRx(portHandler, motor_ix, ADDR_AX_ANGLE_LIMIT_CCW, ANGLE_LIMITS_CCW[i], &dxl_error);
+    packetHandler->write2ByteTxRx(portHandler, motor_ix, ADDR_AX_ANGLE_LIMIT_CW, ANGLE_LIMIT_HIGH, &dxl_error);
+    packetHandler->write2ByteTxRx(portHandler, motor_ix, ADDR_AX_ANGLE_LIMIT_CCW, ANGLE_LIMIT_LOW, &dxl_error);
 
     motors[i].left_neuron_id = i;
     motors[i].right_neuron_id = i + 7; // such that for motor 1 corresponding neurons are 1 and 8, etc  
 
-  }
+    // NEW STUFF
+    motors[i].position_limit_cw = POS_LIMIT_CW[i];
+    motors[i].position_limit_ccw = POS_LIMIT_CCW[i];
 
-  
-// obsolete  - we set those values in struct
-  // for (int i = 0; i < NUM_NEURONS; i++) {
-  //   neurons[i].b = 2.5;
-  //   neurons[i].adaptation_tau = 12;
-  // }
+
+  }
 
   for (int i = 0; i < NUM_NEURONS; i++) {
     all_neurons.y[i] = neurons[i].y;
@@ -241,13 +232,12 @@ void loop() {
 
       if (left.y > right.y)
       {
-        motors[i].goalPosition = mapFloat(left.y, 0, 1, 512, 0); // 512 is a neutral position, 0 is leftmost position
-
+        motors[i].goalPosition = mapFloat(left.y, 0, 1, 512, motors[i].position_limit_ccw); // 512 is a neutral position, 0 is leftmost position
       }
 
       else 
       {
-        motors[i].goalPosition = mapFloat(right.y, 0, 1, 512, 1023); // 512 is a neutral position, 1023 is rightmost position
+        motors[i].goalPosition = mapFloat(right.y, 0, 1, 512, motors[i].position_limit_cw); // 512 is a neutral position, 1023 is rightmost position
       }
       
       int present_position = 0;

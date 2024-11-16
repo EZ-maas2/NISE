@@ -50,8 +50,6 @@ struct Neuron {
 
 
 struct Motor {
-  int angle_limit_cw;
-  int angle_limit_ccw;
   int left_neuron_id;
   int right_neuron_id;
   double goalPosition = 512;
@@ -62,23 +60,24 @@ struct Motor {
 const double a =1.5;
 /******************************************************/ 
 // Connection matrix for mutual inhibition
+
 struct {
   double y[NUM_NEURONS];
   double connectionMatrix[NUM_NEURONS][NUM_NEURONS] = {
-    { 0, a,  0,  0,  0,  0,  0,  a, 0,  0,  0,  0,  0,  0 }, // Neuron 1
-    { a,  0, a,  0,  0,  0,  0,  0,  a, 0,  0,  0,  0,  0 }, // Neuron 2
-    { 0, a,  0, a,  0,  0,  0,  0,  0,  a, 0,  0,  0,  0 }, // Neuron 3
-    { 0,  0, a,  0, a,  0,  0,  0,  0,  0,  a, 0,  0,  0 }, // Neuron 4
-    { 0,  0,  0, a,  0, a,  0,  0,  0,  0,  0,  a, 0,  0 }, // Neuron 5
-    { 0,  0,  0,  0, a,  0, a,  0,  0,  0,  0,  0,  a, 0 }, // Neuron 6
-    { 0,  0,  0,  0,  0, a,  0, 0,  0,  0,  0,  0,  0,  a }, // Neuron 7
-    { a,  0,  0,  0,  0,  0, 0,  0, a,  0,  0,  0,  0,  0 }, // Neuron 8
-    { 0,  a,  0,  0,  0,  0,  0, a, 0, a,  0,  0,  0,  0 }, // Neuron 9
-    { 0, 0,  a,  0,  0,  0,  0,  0, a,  0, a,  0,  0,  0 }, // Neuron 10
-    { 0,  0, 0,  a,  0,  0,  0,  0,  0, a,  0, a,  0,  0 }, // Neuron 11
-    { 0,  0,  0, 0,  a,  0,  0,  0,  0,  0, a,  0, a,  0 }, // Neuron 12
-    { 0,  0,  0,  0, 0,  a,  0,  0,  0,  0,  0, a,  0, a }, // Neuron 13
-    { 0,  0,  0,  0,  0, 0,  a,  0,  0,  0,  0,  0, a,  0 } // Neuron 14
+    { 0, a,  a,  a,  a,  a,  a,  a,  0,  0,  0,  0,  0,  0 }, // Neuron 1
+    { a, 0,  a,  a,  a,  a,  a,  0,  a,  0,  0,  0,  0,  0 }, // Neuron 2
+    { a, a,  0,  a,  a,  a,  a,  0,  0,  a,  0,  0,  0,  0 }, // Neuron 3
+    { a, a,  a,  0,  a,  a,  a,  0,  0,  0,  a,  0,  0,  0 }, // Neuron 4
+    { a, a,  a,  a,  0,  a,  a,  0,  0,  0,  0,  a,  0,  0 }, // Neuron 5
+    { a, a,  a,  a,  a,  0,  a,  0,  0,  0,  0,  0,  a,  0 }, // Neuron 6
+    { a, a,  a,  a,  a,  a,  0,  0,  0,  0,  0,  0,  0,  a }, // Neuron 7
+    { a, 0,  0,  0,  0,  0,  0,  0,  a,  a,  a,  a,  a,  a }, // Neuron 8
+    { 0, a,  0,  0,  0,  0,  0,  a,  0,  a,  a,  a,  a,  a }, // Neuron 9
+    { 0, 0,  a,  0,  0,  0,  0,  a,  a,  0,  a,  a,  a,  a }, // Neuron 10
+    { 0, 0,  0,  a,  0,  0,  0,  a,  a,  a,  0,  a,  a,  a }, // Neuron 11
+    { 0, 0,  0,  0,  a,  0,  0,  a,  a,  a,  a,  0,  a,  a }, // Neuron 12
+    { 0, 0,  0,  0,  0,  a,  0,  a,  a,  a,  a,  a,  0,  a }, // Neuron 13
+    { 0, 0,  0,  0,  0,  0,  a,  a,  a,  a,  a,  a,  a,  0 }  // Neuron 14
   };
 } all_neurons;
 
@@ -173,10 +172,6 @@ void setup() {
 
   
   // SETUP ALL MOTORS
-
-  // Manually define motor angle for everything
-  int ANGLE_LIMITS_CW[NUM_MOTORS] = {512 - 20, 512 - 55, 512 - 90, 512  - 125, 512 - 160, 512 -  195, 512 - 220}; // below 512
-  int ANGLE_LIMITS_CCW[NUM_MOTORS] = {512 + 20, 512+55, 512 + 90, 512  + 125, 512 + 160, 512 +  195, 512 + 220};// above 512
   for (int i = 0; i < NUM_MOTORS; i++)
   {
     int motor_ix = i + 1;
@@ -186,10 +181,8 @@ void setup() {
     // packetHandler->write2ByteTxRx(portHandler, motor_ix, ADDR_AX_ANGLE_LIMIT_CW, ANGLE_LIMIT_HIGH, &dxl_error);
     // packetHandler->write2ByteTxRx(portHandler, motor_ix, ADDR_AX_ANGLE_LIMIT_CCW, ANGLE_LIMIT_LOW, &dxl_error);
 
-    //packetHandler->write2ByteTxRx(portHandler, motor_ix, ADDR_AX_ANGLE_LIMIT_CW, 512 - 20 - i*65 , &dxl_error);
-    //packetHandler->write2ByteTxRx(portHandler, motor_ix, ADDR_AX_ANGLE_LIMIT_CCW, 512 + 20 + i*65, &dxl_error);
-    packetHandler->write2ByteTxRx(portHandler, motor_ix, ADDR_AX_ANGLE_LIMIT_CW, ANGLE_LIMITS_CW[i], &dxl_error);
-    packetHandler->write2ByteTxRx(portHandler, motor_ix, ADDR_AX_ANGLE_LIMIT_CCW, ANGLE_LIMITS_CCW[i], &dxl_error);
+    packetHandler->write2ByteTxRx(portHandler, motor_ix, ADDR_AX_ANGLE_LIMIT_CW, 512 - 20 - i*65 , &dxl_error);
+    packetHandler->write2ByteTxRx(portHandler, motor_ix, ADDR_AX_ANGLE_LIMIT_CCW, 512 + 20 + i*65, &dxl_error);
 
     motors[i].left_neuron_id = i;
     motors[i].right_neuron_id = i + 7; // such that for motor 1 corresponding neurons are 1 and 8, etc  
