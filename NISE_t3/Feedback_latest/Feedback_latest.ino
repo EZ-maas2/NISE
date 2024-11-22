@@ -48,7 +48,7 @@ long long int lastTimeCheckingSensors = 0;
 struct Neuron {
   double x = 0.0;
   double adaptation = 0.0;
-  double adaptation_tau = 12;
+  double adaptation_tau = 6;
   double y = 0.0;
   double b = 2.5;
   double inj_cur = 0.0;
@@ -317,7 +317,7 @@ void loop() {
  }
 
   
-  if (myTime > lastTimeCheckingSensors + 750)
+  if (myTime > lastTimeCheckingSensors + 500)
   {
     check_sensors();
     lastTimeCheckingSensors = millis();
@@ -326,6 +326,14 @@ void loop() {
 
 
   update_network();
+
+  // for (int n = 0; n < 2; n++){
+  //   Serial.print(neurons[n].y);
+  //   Serial.print(" ,");
+  //   Serial.print(neurons[n+7].y);
+  //   Serial.print(" ,");
+  // }
+  // Serial.print("\n");
   
   
 
@@ -335,8 +343,7 @@ void loop() {
   // 3) Map its value to motor position
   // 4) Send this motor position to the motor
 
-  if (IsCurrentOn == true && myTime > 1500)
-  {
+  
     for (int i = 0; i < NUM_MOTORS; i++)
     {
       // motor_ix = i + 1;
@@ -345,12 +352,12 @@ void loop() {
 
       if (left.y > right.y)
       {
-        motors[i].goalPosition = mapFloat(left.y, 0.0, 0.7, 512, motors[i].position_limit_cw); // 512 is a neutral position, 0 is leftmost position
+        motors[i].goalPosition = mapFloat(left.y, 0.0, 1.0, 512, motors[i].position_limit_cw); // 512 is a neutral position, 0 is leftmost position
       }
 
       else if (right.y > left.y)
       {
-        motors[i].goalPosition = mapFloat(right.y, 0.0, 0.7, 512, motors[i].position_limit_ccw); // 512 is a neutral position, 1023 is rightmost position
+        motors[i].goalPosition = mapFloat(right.y, 0.0, 1.0, 512, motors[i].position_limit_ccw); // 512 is a neutral position, 1023 is rightmost position
       }
 
       else 
@@ -365,18 +372,16 @@ void loop() {
       packetHandler->read2ByteTxRx(portHandler, i+1, ADDR_AX_PRESENT_POSITION, (uint16_t*)&present_position, &dxl_error);
       motors[i].presentPosition = present_position;
 
-      if (i ==0 || i ==1)
-      {Serial.print(512);
-      Serial.print(", ");
-        Serial.print(motors[i].presentPosition);
-      Serial.print(", ");
-      }
-
+      // if (i ==0 || i ==1)
+      // {
+      // Serial.print(motors[i].presentPosition);
+      // Serial.print(", ");
+      // }
     }
+    // Serial.print(512);
+    // Serial.print("\n");
 
-    Serial.print("\n");
-
-  }
+  
   
   delay(20); // Delay for stability
 }
