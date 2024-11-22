@@ -239,7 +239,7 @@ void check_sensors()
     Serial.println("Obstacle on the left");
     // Change pos limit
      for (int m = 0; m < NUM_MOTORS; m++)
-     {motors[m].position_limit_ccw = 1023;}
+     {motors[m].position_limit_cw = 1023;}
 
      reduce_cpg_amplitudes_left();
   }
@@ -248,7 +248,7 @@ void check_sensors()
     Serial.println("Obstacle on the right");
     for (int m = 0; m < NUM_MOTORS; m++)
     // Change pos limit
-    {motors[m].position_limit_cw = 0;}
+    {motors[m].position_limit_ccw = 0;}
     reduce_cpg_amplitudes_right();
   }
 
