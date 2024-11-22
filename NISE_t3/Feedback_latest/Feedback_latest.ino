@@ -28,12 +28,13 @@
 #define FULL_TORQUE                    1023
 #define HALF_TORQUE                    512
 #define NUM_MOTORS                     7
-#define ANGLE_LIMIT_LOW                725 // has to be a value between 0 and 1023 
-#define ANGLE_LIMIT_HIGH               298 // has to be a value between 0 and 1023 
+#define ANGLE_LIMIT_LOW                768 // has to be a value between 0 and 1023 
+#define ANGLE_LIMIT_HIGH               256 // has to be a value between 0 and 1023 
 
-// Neural Oscillator Parameters
-#define DISCRIPTION_LENGTH             15
+// Neural Oscillator Parameter
 #define NUM_NEURONS                    14
+
+bool IsCurrentOn = false;
 
 
 unsigned long startTime;
@@ -86,20 +87,21 @@ const double a =1.0;
 struct {
   double y[NUM_NEURONS];
   double connectionMatrix[NUM_NEURONS][NUM_NEURONS] = {
-    { 0, a,  0,  0,  0,  0,  0,  a, a,  0,  0,  0,  0,  0 }, // Neuron 1
-    { 0,  0, a,  0,  0,  0,  0,  a,  a, a,  0,  0,  0,  0 }, // Neuron 2
-    { 0, 0,  0, a,  0,  0,  0,  0,  a,  a, a,  0,  0,  0 }, // Neuron 3
-    { 0,  0, 0,  0, a,  0,  0,  0,  0,  a,  a, a,  0,  0 }, // Neuron 4
-    { 0,  0,  0, 0,  0, a,  0,  0,  0,  0,  a,  a, a,  0 }, // Neuron 5
-    { 0,  0,  0,  0, 0,  0, a,  0,  0,  0,  0,  a,  a, a }, // Neuron 6
-    { 0,  0,  0,  0,  0, 0,  0, 0,  0,  0,  0,  0,  a,  a }, // Neuron 7
-    { a,  a,  0,  0,  0,  0, 0,  0, a,  0,  0,  0,  0,  0 }, // Neuron 8
-    { a,  a,  a,  0,  0,  0,  0, 0, 0, a,  0,  0,  0,  0 }, // Neuron 9
-    { 0, a,  a,  a,  0,  0,  0,  0, 0,  0, a,  0,  0,  0 }, // Neuron 10
-    { 0,  0, a,  a,  a,  0,  0,  0,  0, 0,  0, a,  0,  0 }, // Neuron 11
-    { 0,  0,  0, a,  a,  a,  0,  0,  0,  0, 0,  0, a,  0 }, // Neuron 12
-    { 0,  0,  0,  0, a,  a,  a,  0,  0,  0,  0, 0,  0, a }, // Neuron 13
-    { 0,  0,  0,  0,  0, a,  a,  0,  0,  0,  0,  0, 0,  0 } // Neuron 14
+    //1   2   3   4   5   6   7   8   9   10  11  12  13  14 
+    { 0,  a,  0,  0,  0,  0,  0,  a,  a,  0,  0,  0,  0,  0 }, // Neuron 1
+    { 0,  0,  a,  0,  0,  0,  0,  a,  a,  a,  0,  0,  0,  0 }, // Neuron 2
+    { 0,  0,  0,  a,  0,  0,  0,  0,  a,  a,  a,  0,  0,  0 }, // Neuron 3
+    { 0,  0,  0,  0,  a,  0,  0,  0,  0,  a,  a,  a,  0,  0 }, // Neuron 4
+    { 0,  0,  0,  0,  0,  a,  0,  0,  0,  0,  a,  a,  a,  0 }, // Neuron 5
+    { 0,  0,  0,  0,  0,  0,  a,  0,  0,  0,  0,  a,  a,  a }, // Neuron 6
+    { 0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  a,  a }, // Neuron 7
+    { a,  a,  0,  0,  0,  0,  0,  0,  a,  0,  0,  0,  0,  0 }, // Neuron 8
+    { a,  a,  a,  0,  0,  0,  0,  0,  0,  a,  0,  0,  0,  0 }, // Neuron 9
+    { 0,  a,  a,  a,  0,  0,  0,  0,  0,  0,  a,  0,  0,  0 }, // Neuron 10
+    { 0,  0,  a,  a,  a,  0,  0,  0,  0,  0,  0,  a,  0,  0 }, // Neuron 11
+    { 0,  0,  0,  a,  a,  a,  0,  0,  0,  0,  0,  0,  a,  0 }, // Neuron 12
+    { 0,  0,  0,  0,  a,  a,  a,  0,  0,  0,  0,  0,  0,  a }, // Neuron 13
+    { 0,  0,  0,  0,  0,  a,  a,  0,  0,  0,  0,  0,  0,  0 } // Neuron 14
   };
 } all_neurons;
 
@@ -255,8 +257,6 @@ void check_sensors()
      {motors[m].position_limit_ccw = 1023;}
 
      reduce_cpg_amplitudes_left();
-     //reduce_cpg_all_amplitudes(0.2);
-     //change_adaptation_tau(SLOW_TAU); // to reduce oscillation frequency
   }
 
   else if (sensor1 < FR_SENSOR_PIN_THR) { // OBSTACLE ON  THE RIGHT
@@ -265,8 +265,6 @@ void check_sensors()
     // Change pos limit
     {motors[m].position_limit_ccw = 0;}
     reduce_cpg_amplitudes_right();
-    //change_adaptation_tau(SLOW_TAU); // to reduce oscillation frequency
-    //reduce_cpg_all_amplitudes(0.2);
   }
 
   else if (sensor0 >= FL_SENSOR_PIN_THR && sensor1 >= FR_SENSOR_PIN_THR){
@@ -291,7 +289,6 @@ void reduce_cpg_amplitudes_left(){
       neurons[ix].y = neurons[ix].y * 0.5;
     }
   }
-
 
 }
 
@@ -329,19 +326,28 @@ void loop() {
   
   /* Apply input current to the neurons after a delay (5000 ms) */
  
- for (int i = 0; i < NUM_NEURONS; i++) 
+//  for (int i = 0; i < NUM_NEURONS; i++) 
+//  {
+//   if (myTime > 750) 
+//   {
+//     neurons[i].inj_cur = 1;  // Inject current after the specified time
+//   } 
+//   else {
+//     neurons[i].inj_cur = 0;
+//   }
+//  }
+
+ if (myTime >  750 && !IsCurrentOn)
  {
-  if (myTime > 750) 
+  for (int i = 0; i < NUM_NEURONS; i++) 
   {
-    neurons[i].inj_cur = 1;  // Inject current after the specified time
-  } 
-  else {
-    neurons[i].inj_cur = 0;
+    neurons[i].inj_cur = 1;
   }
+   IsCurrentOn = true; // ensures that we only do this once
  }
 
   
-  if (myTime > lastTime + 500)
+  if (myTime > lastTime + 750)
   {
     check_sensors();
     lastTime = millis();
@@ -360,17 +366,6 @@ void loop() {
   // 4) Send this motor position to the motor
   for (int i = 0; i < NUM_MOTORS; i++)
     {
-      
-      //Serial.println("CW ");
-      // Serial.println(i);
-      // Serial.println(motors[i].position_limit_cw);
-      // Serial.println("CCW ");
-      // Serial.println(i);
-      // Serial.println(motors[i].position_limit_ccw);
-      // Serial.println("=================");
-
-
-
       // motor_ix = i + 1;
       Neuron left = neurons[motors[i].left_neuron_id]; // retrieve the left neuron of this motor
       Neuron right = neurons[motors[i].right_neuron_id];
@@ -380,12 +375,18 @@ void loop() {
         motors[i].goalPosition = mapFloat(left.y, 0, 1, 512, motors[i].position_limit_ccw); // 512 is a neutral position, 0 is leftmost position
       }
 
-      else 
+      else if (right.y > left.y)
       {
         motors[i].goalPosition = mapFloat(right.y, 0, 1, 512, motors[i].position_limit_cw); // 512 is a neutral position, 1023 is rightmost position
       }
+
+      else 
+      {
+        motors[i].goalPosition = 512;
+      }
       
       int present_position = 0;
+
         // Write the goal position to the motor
       packetHandler->write2ByteTxRx(portHandler, i+1, ADDR_AX_GOAL_POSITION, motors[i].goalPosition, &dxl_error);
       packetHandler->read2ByteTxRx(portHandler, i+1, ADDR_AX_PRESENT_POSITION, (uint16_t*)&present_position, &dxl_error);
