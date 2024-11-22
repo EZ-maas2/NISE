@@ -45,6 +45,8 @@ long long int lastTime = 0;
 int currentNeuronIndex = 0; // Start with the first neuron
 unsigned long lastSwitchTime = 0; // Last time the neuron was switched
 const unsigned long switchInterval = 5000; // Time in milliseconds to switch neurons (1 second)
+const double SLOW_TAU = 50;
+const double FAST_TAU = 6;
 
 struct Neuron {
   double x = 0.0;
@@ -65,9 +67,18 @@ struct Motor {
   double presentPosition;
 } motors[NUM_MOTORS];
 
-int POS_LIMITS_CW[NUM_MOTORS] = {512 - 20, 512 - 125, 512 - 90, 512  - 125, 512 - 160, 512 -  195, 512 - 200}; // below 512
+int POS_LIMITS_CW[NUM_MOTORS] =  {512 - 20, 512 - 125, 512 - 90, 512  - 125, 512 - 160, 512 -  195, 512 - 200}; // below 512
 int POS_LIMITS_CCW[NUM_MOTORS] = {512 + 20, 512 + 125, 512 + 90, 512  + 125, 512 + 160, 512 +  195, 512 + 200};// above 512
 
+
+void set_normal_motor_pos_limits()
+{
+  for(int m = 0; m < NUM_MOTORS; m++){
+    motors[m].position_limit_cw = POS_LIMITS_CW[m];
+    motors[m].position_limit_ccw= POS_LIMITS_CCW[m];
+  }
+
+}
 
 const double a =1.0;
 /******************************************************/ 
@@ -184,9 +195,6 @@ void setup() {
   
   // SETUP ALL MOTORS
 
-  // MOTOR ANGLE IS +- 75 DEGREES, POSITION LIMIT IS INDIVIDUAL
-  //int POS_LIMITS_CW[NUM_MOTORS] = {512 - 20, 512 - 125, 512 - 90, 512  - 125, 512 - 160, 512 -  195, 512 - 200}; // below 512
-  //int POS_LIMITS_CCW[NUM_MOTORS] = {512 + 20, 512 + 125, 512 + 90, 512  + 125, 512 + 160, 512 +  195, 512 + 200};// above 512
   for (int i = 0; i < NUM_MOTORS; i++)
   {
     int motor_ix = i + 1;
@@ -214,7 +222,7 @@ void setup() {
 void check_sensors()
 {
   double FL_SENSOR_PIN_THR = 235; // THRESHOLDS AFTER WHICH WE TAKE SOME ACTION
-  double FR_SENSOR_PIN_THR = 235;
+  double FR_SENSOR_PIN_THR = 160;
   double ML_SENSOR_PIN_THR = 75;
   double MR_SENSOR_PIN_THR = 30;
   double BL_SENSOR_PIN_THR = 250;
@@ -241,30 +249,29 @@ void check_sensors()
 
   if (sensor0 < FL_SENSOR_PIN_THR) 
   { // OBSTACLE ON THE LEFT
-    //neurons[0].y = 1.0; // if left sensor is triggered, turn head right
-    //neurons[7].y = 0.0;
     Serial.println("Obstacle on the left");
+    // Change pos limit
      for (int m = 0; m < NUM_MOTORS; m++)
      {motors[m].position_limit_ccw = 1023;}
+
      reduce_cpg_amplitudes_left();
-     reduce_cpg_all_amplitudes(0.2);
+     //reduce_cpg_all_amplitudes(0.2);
+     //change_adaptation_tau(SLOW_TAU); // to reduce oscillation frequency
   }
 
   else if (sensor1 < FR_SENSOR_PIN_THR) { // OBSTACLE ON  THE RIGHT
-    //neurons[7].y = 1.0; // if right sensor is triggered, turn head left
-    //neurons[0].y = 0.0;
-    
     Serial.println("Obstacle on the right");
     for (int m = 0; m < NUM_MOTORS; m++)
+    // Change pos limit
     {motors[m].position_limit_ccw = 0;}
     reduce_cpg_amplitudes_right();
-    
-    reduce_cpg_all_amplitudes(0.2);
+    //change_adaptation_tau(SLOW_TAU); // to reduce oscillation frequency
+    //reduce_cpg_all_amplitudes(0.2);
   }
 
   else if (sensor0 >= FL_SENSOR_PIN_THR && sensor1 >= FR_SENSOR_PIN_THR){
-    motors[0].position_limit_cw = POS_LIMITS_CW[0];
-    motors[0].position_limit_ccw = POS_LIMITS_CCW[0];
+    set_normal_motor_pos_limits();
+    //change_adaptation_tau(FAST_TAU);
   }
 
   if (sensor2 < ML_SENSOR_PIN_THR)// || sensor3 < MR_SENSOR_PIN_THR)//|| sensor4 < BL_SENSOR_PIN_THR|| sensor5 < BR_SENSOR_PIN_THR)
@@ -308,6 +315,14 @@ void reduce_cpg_all_amplitudes(float factor)
 }
 
 
+void change_adaptation_tau(double new_tau){
+  for (int ix = 0; ix < NUM_NEURONS; ix++)
+  {
+  neurons[ix].adaptation_tau = new_tau;
+  }
+}
+
+
 void loop() {
 
   myTime = millis();
@@ -316,7 +331,7 @@ void loop() {
  
  for (int i = 0; i < NUM_NEURONS; i++) 
  {
-  if (myTime > 500) 
+  if (myTime > 750) 
   {
     neurons[i].inj_cur = 1;  // Inject current after the specified time
   } 
@@ -326,7 +341,7 @@ void loop() {
  }
 
   
-  if (myTime > lastTime + 200)
+  if (myTime > lastTime + 500)
   {
     check_sensors();
     lastTime = millis();

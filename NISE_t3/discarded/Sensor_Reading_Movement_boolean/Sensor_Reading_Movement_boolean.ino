@@ -40,11 +40,11 @@ unsigned long startTime;
 unsigned long myTime;
 unsigned int mydelay = 1000; // ms
 int motor_ix = 0;
-long long int lastTime = 0;
 
 int currentNeuronIndex = 0; // Start with the first neuron
 unsigned long lastSwitchTime = 0; // Last time the neuron was switched
 const unsigned long switchInterval = 5000; // Time in milliseconds to switch neurons (1 second)
+bool suppress_updates = false;
 
 struct Neuron {
   double x = 0.0;
@@ -64,9 +64,6 @@ struct Motor {
   double goalPosition = 512;
   double presentPosition;
 } motors[NUM_MOTORS];
-
-int POS_LIMITS_CW[NUM_MOTORS] = {512 - 20, 512 - 125, 512 - 90, 512  - 125, 512 - 160, 512 -  195, 512 - 200}; // below 512
-int POS_LIMITS_CCW[NUM_MOTORS] = {512 + 20, 512 + 125, 512 + 90, 512  + 125, 512 + 160, 512 +  195, 512 + 200};// above 512
 
 
 const double a =1.0;
@@ -163,11 +160,17 @@ void update_one_neuron(struct Neuron* neuron_pointer, int neuron_index) {
   all_neurons.y[neuron_index] = neuron_pointer->y;
 }
 
-void update_network(void) {
+void update_network() {
+  if (suppress_updates) {
+    suppress_updates = false; // Skip this update cycle
+    return;
+  }
+
   for (int i = 0; i < NUM_NEURONS; i++) {
     update_one_neuron(&neurons[i], i);
   }
 }
+
 
 void setup() {
   Serial.begin(115200);
@@ -185,8 +188,8 @@ void setup() {
   // SETUP ALL MOTORS
 
   // MOTOR ANGLE IS +- 75 DEGREES, POSITION LIMIT IS INDIVIDUAL
-  //int POS_LIMITS_CW[NUM_MOTORS] = {512 - 20, 512 - 125, 512 - 90, 512  - 125, 512 - 160, 512 -  195, 512 - 200}; // below 512
-  //int POS_LIMITS_CCW[NUM_MOTORS] = {512 + 20, 512 + 125, 512 + 90, 512  + 125, 512 + 160, 512 +  195, 512 + 200};// above 512
+  int POS_LIMITS_CW[NUM_MOTORS] = {512 - 20, 512 - 125, 512 - 90, 512  - 125, 512 - 160, 512 -  195, 512 - 200}; // below 512
+  int POS_LIMITS_CCW[NUM_MOTORS] = {512 + 20, 512 + 125, 512 + 90, 512  + 125, 512 + 160, 512 +  195, 512 + 200};// above 512
   for (int i = 0; i < NUM_MOTORS; i++)
   {
     int motor_ix = i + 1;
@@ -213,97 +216,45 @@ void setup() {
 
 void check_sensors()
 {
-  double FL_SENSOR_PIN_THR = 235; // THRESHOLDS AFTER WHICH WE TAKE SOME ACTION
-  double FR_SENSOR_PIN_THR = 235;
-  double ML_SENSOR_PIN_THR = 75;
-  double MR_SENSOR_PIN_THR = 30;
-  double BL_SENSOR_PIN_THR = 250;
-  double BR_SENSOR_PIN_THR = 250;
+  double FL_SENSOR_PIN_THR = 400; // THRESHOLDS AFTER WHICH WE TAKE SOME ACTION
+  double FR_SENSOR_PIN_THR = 400;
+  double ML_SENSOR_PIN_THR = 400;
+  double MR_SENSOR_PIN_THR = 400;
+  double BL_SENSOR_PIN_THR = 400;
+  double BR_SENSOR_PIN_THR = 400;
 
   int sensor0 = analogRead(FL_SENSOR_PIN);
   int sensor1 = analogRead(FR_SENSOR_PIN);
-  int sensor2 = analogRead(ML_SENSOR_PIN);
-  //int sensor3 = analogRead(MR_SENSOR_PIN);
-  //int sensor4 = analogRead(BL_SENSOR_PIN);
-  //int sensor5 = analogRead(BR_SENSOR_PIN);
 
-
-  Serial.print(sensor0);
-
-  Serial.print(" ,");
-  Serial.print(sensor1);
-   Serial.print(" ,");
-  Serial.print(sensor2);
-
-  Serial.println();
-
-
-
-  if (sensor0 < FL_SENSOR_PIN_THR) 
-  { // OBSTACLE ON THE LEFT
-    //neurons[0].y = 1.0; // if left sensor is triggered, turn head right
-    //neurons[7].y = 0.0;
-    Serial.println("Obstacle on the left");
-     for (int m = 0; m < NUM_MOTORS; m++)
-     {motors[m].position_limit_ccw = 1023;}
-     reduce_cpg_amplitudes_left();
-     reduce_cpg_all_amplitudes(0.2);
+  if (sensor0 < FL_SENSOR_PIN_THR) { // OBSTACLE ON THE LEFT
+    neurons[0].y = 1.0; // if left sensor is triggered, turn head right
+    reduce_cpg_amplitudes_left();
   }
-
   else if (sensor1 < FR_SENSOR_PIN_THR) { // OBSTACLE ON  THE RIGHT
-    //neurons[7].y = 1.0; // if right sensor is triggered, turn head left
-    //neurons[0].y = 0.0;
-    
-    Serial.println("Obstacle on the right");
-    for (int m = 0; m < NUM_MOTORS; m++)
-    {motors[m].position_limit_ccw = 0;}
+    neurons[7].y = 1.0; // if right sensor is triggered, turn head left
     reduce_cpg_amplitudes_right();
-    
-    reduce_cpg_all_amplitudes(0.2);
   }
-
-  else if (sensor0 >= FL_SENSOR_PIN_THR && sensor1 >= FR_SENSOR_PIN_THR){
-    motors[0].position_limit_cw = POS_LIMITS_CW[0];
-    motors[0].position_limit_ccw = POS_LIMITS_CCW[0];
-  }
-
-  if (sensor2 < ML_SENSOR_PIN_THR)// || sensor3 < MR_SENSOR_PIN_THR)//|| sensor4 < BL_SENSOR_PIN_THR|| sensor5 < BR_SENSOR_PIN_THR)
-  {
-    Serial.println("ML detected");
-    reduce_cpg_all_amplitudes(0.25);
-  }
+  //all_neurons.y[neuron_index] = neuron_pointer->y;
 }
 
 
-void reduce_cpg_amplitudes_left(){
-  // if right  sensor is triggered, we reduce amplitudes of all the right neurons
+//bool suppress_updates = false; // Global flag for suppressing updates
 
-  for (int ix = 0; ix < NUM_NEURONS; ix++){
-    if(ix > 7)
-    {
-      neurons[ix].y = neurons[ix].y * 0.5;
+void reduce_cpg_amplitudes_left() {
+  suppress_updates = true; // Temporarily suppress updates
+  for (int ix = 0; ix < NUM_NEURONS; ix++) {
+    if (ix > 7) { // Reduce right neuron outputs
+      neurons[ix].y *= 0.5;
     }
   }
-
-
 }
 
-void reduce_cpg_amplitudes_right(){
-  // if left  sensor is triggered, we reduce amplitudes of all the left neurons
-
-  for (int ix = 0; ix < NUM_NEURONS; ix++){
-    if(ix < 8)
-    {
-      neurons[ix].y = neurons[ix].y * 0.5;
+void reduce_cpg_amplitudes_right() {
+  suppress_updates = true; // Temporarily suppress updates
+  for (int ix = 0; ix < NUM_NEURONS; ix++) {
+    if (ix < 8) { // Reduce left neuron outputs
+      neurons[ix].y *= 0.5;
     }
-  }}
-
-
-void reduce_cpg_all_amplitudes(float factor)
-{
-  for (int ix = 0; ix < NUM_NEURONS; ix++)
-  {
-  neurons[ix].y = neurons[ix].y * factor;  
   }
 }
 
@@ -316,7 +267,7 @@ void loop() {
  
  for (int i = 0; i < NUM_NEURONS; i++) 
  {
-  if (myTime > 500) 
+  if (myTime > 1000) 
   {
     neurons[i].inj_cur = 1;  // Inject current after the specified time
   } 
@@ -324,19 +275,9 @@ void loop() {
     neurons[i].inj_cur = 0;
   }
  }
-
   
-  if (myTime > lastTime + 200)
-  {
-    check_sensors();
-    lastTime = millis();
-  }
-  
-
-
+  check_sensors();
   update_network();
-  
-  
 
   // For each motor:
   // 1)Retrieve two neurons responsible for motor's movement
@@ -345,17 +286,6 @@ void loop() {
   // 4) Send this motor position to the motor
   for (int i = 0; i < NUM_MOTORS; i++)
     {
-      
-      //Serial.println("CW ");
-      // Serial.println(i);
-      // Serial.println(motors[i].position_limit_cw);
-      // Serial.println("CCW ");
-      // Serial.println(i);
-      // Serial.println(motors[i].position_limit_ccw);
-      // Serial.println("=================");
-
-
-
       // motor_ix = i + 1;
       Neuron left = neurons[motors[i].left_neuron_id]; // retrieve the left neuron of this motor
       Neuron right = neurons[motors[i].right_neuron_id];
@@ -375,11 +305,11 @@ void loop() {
       packetHandler->write2ByteTxRx(portHandler, i+1, ADDR_AX_GOAL_POSITION, motors[i].goalPosition, &dxl_error);
       packetHandler->read2ByteTxRx(portHandler, i+1, ADDR_AX_PRESENT_POSITION, (uint16_t*)&present_position, &dxl_error);
       motors[i].presentPosition = present_position;
-      //Serial.print(motors[i].presentPosition);
-      //Serial.print(", ");
+      Serial.print(motors[i].presentPosition);
+      Serial.print(", ");
     }
-    //Serial.print(motors[0].presentPosition);
-    //Serial.print("\n");
+
+    Serial.print("\n");
 
 
 
