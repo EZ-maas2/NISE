@@ -9,6 +9,7 @@
 #define ADDR_AX_PRESENT_POSITION       36
 #define ADDR_AX_ANGLE_LIMIT_CW         6 //clockwise angle limit address
 #define ADDR_AX_ANGLE_LIMIT_CCW        8
+#define ADDR_AX_MOVING_SPEED          32    // Moving speed address
 
 // Sensor definition
 #define FL_SENSOR_PIN A0 // Front Left Flex Sensor
@@ -28,8 +29,9 @@
 #define FULL_TORQUE                    1023
 #define HALF_TORQUE                    512
 #define NUM_MOTORS                     7
-#define ANGLE_LIMIT_CW                768 // has to be a value between 0 and 1023 
-#define ANGLE_LIMIT_CCW               256 // has to be a value between 0 and 1023 
+#define ANGLE_LIMIT_CW                256 // has to be a value between 0 and 1023 
+#define ANGLE_LIMIT_CCW               768 // has to be a value between 0 and 1023 
+#define FULL_SPEED                    1023  // Full speed range
 
 // Neural Oscillator Parameter
 #define NUM_NEURONS                    14
@@ -46,7 +48,7 @@ long long int lastTimeCheckingSensors = 0;
 struct Neuron {
   double x = 0.0;
   double adaptation = 0.0;
-  double adaptation_tau = 12*0.5;
+  double adaptation_tau = 12;
   double y = 0.0;
   double b = 2.5;
   double inj_cur = 0.0;
@@ -195,6 +197,7 @@ void setup() {
     int motor_ix = i + 1;
     packetHandler->write2ByteTxRx(portHandler, motor_ix, ADDR_AX_TORQUE_LIMIT, FULL_TORQUE, &dxl_error);
     packetHandler->write1ByteTxRx(portHandler, motor_ix, ADDR_AX_TORQUE_ENABLE, TORQUE_ENABLE, &dxl_error);
+    packetHandler->write2ByteTxRx(portHandler, DXL_ID, ADDR_AX_MOVING_SPEED, FULL_SPEED, &dxl_error);
     
     packetHandler->write2ByteTxRx(portHandler, motor_ix, ADDR_AX_ANGLE_LIMIT_CW, ANGLE_LIMIT_CW, &dxl_error);
     packetHandler->write2ByteTxRx(portHandler, motor_ix, ADDR_AX_ANGLE_LIMIT_CCW, ANGLE_LIMIT_CCW, &dxl_error);
@@ -249,14 +252,13 @@ void check_sensors()
 
   else if (sensor0 >= FL_SENSOR_PIN_THR && sensor1 >= FR_SENSOR_PIN_THR){
     set_normal_motor_pos_limits();
-    //change_adaptation_tau(FAST_TAU);
   }
 
-  if (sensor2 < ML_SENSOR_PIN_THR)// || sensor3 < MR_SENSOR_PIN_THR)//|| sensor4 < BL_SENSOR_PIN_THR|| sensor5 < BR_SENSOR_PIN_THR)
-  {
-    Serial.println("ML detected");
-    reduce_cpg_all_amplitudes(0.25);
-  }
+  // if (sensor2 < ML_SENSOR_PIN_THR)// || sensor3 < MR_SENSOR_PIN_THR)//|| sensor4 < BL_SENSOR_PIN_THR|| sensor5 < BR_SENSOR_PIN_THR)
+  // {
+  //   Serial.println("ML detected");
+  //   reduce_cpg_all_amplitudes(0.25);
+  // }
 }
 
 
@@ -343,12 +345,12 @@ void loop() {
 
       if (left.y > right.y)
       {
-        motors[i].goalPosition = mapFloat(left.y, 0.0, 1.0, 512, motors[i].position_limit_ccw); // 512 is a neutral position, 0 is leftmost position
+        motors[i].goalPosition = mapFloat(left.y, 0.0, 0.7, 512, motors[i].position_limit_cw); // 512 is a neutral position, 0 is leftmost position
       }
 
       else if (right.y > left.y)
       {
-        motors[i].goalPosition = mapFloat(right.y, 0.0, 1.0, 512, motors[i].position_limit_cw); // 512 is a neutral position, 1023 is rightmost position
+        motors[i].goalPosition = mapFloat(right.y, 0.0, 0.7, 512, motors[i].position_limit_ccw); // 512 is a neutral position, 1023 is rightmost position
       }
 
       else 
@@ -362,10 +364,16 @@ void loop() {
       packetHandler->write2ByteTxRx(portHandler, i+1, ADDR_AX_GOAL_POSITION, motors[i].goalPosition, &dxl_error);
       packetHandler->read2ByteTxRx(portHandler, i+1, ADDR_AX_PRESENT_POSITION, (uint16_t*)&present_position, &dxl_error);
       motors[i].presentPosition = present_position;
-      Serial.print(motors[i].presentPosition + i * 1000);
+
+      if (i ==0 || i ==1)
+      {Serial.print(512);
       Serial.print(", ");
+        Serial.print(motors[i].presentPosition);
+      Serial.print(", ");
+      }
+
     }
-    //Serial.print(motors[0].presentPosition);
+
     Serial.print("\n");
 
   }
