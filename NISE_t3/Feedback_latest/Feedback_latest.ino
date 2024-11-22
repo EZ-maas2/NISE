@@ -28,8 +28,8 @@
 #define FULL_TORQUE                    1023
 #define HALF_TORQUE                    512
 #define NUM_MOTORS                     7
-#define ANGLE_LIMIT_LOW                768 // has to be a value between 0 and 1023 
-#define ANGLE_LIMIT_HIGH               256 // has to be a value between 0 and 1023 
+#define ANGLE_LIMIT_CW                768 // has to be a value between 0 and 1023 
+#define ANGLE_LIMIT_CCW               256 // has to be a value between 0 and 1023 
 
 // Neural Oscillator Parameter
 #define NUM_NEURONS                    14
@@ -196,8 +196,8 @@ void setup() {
     packetHandler->write2ByteTxRx(portHandler, motor_ix, ADDR_AX_TORQUE_LIMIT, FULL_TORQUE, &dxl_error);
     packetHandler->write1ByteTxRx(portHandler, motor_ix, ADDR_AX_TORQUE_ENABLE, TORQUE_ENABLE, &dxl_error);
     
-    packetHandler->write2ByteTxRx(portHandler, motor_ix, ADDR_AX_ANGLE_LIMIT_CW, ANGLE_LIMIT_HIGH, &dxl_error);
-    packetHandler->write2ByteTxRx(portHandler, motor_ix, ADDR_AX_ANGLE_LIMIT_CCW, ANGLE_LIMIT_LOW, &dxl_error);
+    packetHandler->write2ByteTxRx(portHandler, motor_ix, ADDR_AX_ANGLE_LIMIT_CW, ANGLE_LIMIT_CW, &dxl_error);
+    packetHandler->write2ByteTxRx(portHandler, motor_ix, ADDR_AX_ANGLE_LIMIT_CCW, ANGLE_LIMIT_CCW, &dxl_error);
 
     motors[i].left_neuron_id = i;
     motors[i].right_neuron_id = i + 7; // such that for motor 1 corresponding neurons are 0 and 7, etc  
