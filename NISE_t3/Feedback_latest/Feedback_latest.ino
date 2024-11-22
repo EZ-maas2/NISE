@@ -37,15 +37,11 @@
 bool IsCurrentOn = false;
 
 
-unsigned long startTime;
 unsigned long myTime;
 unsigned int mydelay = 1000; // ms
 int motor_ix = 0;
-long long int lastTime = 0;
+long long int lastTimeCheckingSensors = 0;
 
-int currentNeuronIndex = 0; // Start with the first neuron
-const double SLOW_TAU = 50;
-const double FAST_TAU = 6;
 
 struct Neuron {
   double x = 0.0;
@@ -66,8 +62,8 @@ struct Motor {
   double presentPosition;
 } motors[NUM_MOTORS];
 
-int POS_LIMITS_CW[NUM_MOTORS] =  {512 - 20, 512 - 125, 512 - 90, 512  - 125, 512 - 160, 512 -  195, 512 - 200}; // below 512
-int POS_LIMITS_CCW[NUM_MOTORS] = {512 + 20, 512 + 125, 512 + 90, 512  + 125, 512 + 160, 512 +  195, 512 + 200};// above 512
+int POS_LIMITS_CW[NUM_MOTORS] =  {512 + 20, 512 + 125, 512 + 90, 512  + 125, 512 + 160, 512 +  195, 512 + 200}; 
+int POS_LIMITS_CCW[NUM_MOTORS] = {512 - 20, 512 - 125, 512 - 90, 512  - 125, 512 - 160, 512 -  195, 512 - 200};
 
 
 void set_normal_motor_pos_limits()
@@ -76,7 +72,6 @@ void set_normal_motor_pos_limits()
     motors[m].position_limit_cw = POS_LIMITS_CW[m];
     motors[m].position_limit_ccw= POS_LIMITS_CCW[m];
   }
-
 }
 
 const double a = 1.0;
@@ -320,10 +315,10 @@ void loop() {
  }
 
   
-  if (myTime > lastTime + 750)
+  if (myTime > lastTimeCheckingSensors + 750)
   {
     check_sensors();
-    lastTime = millis();
+    lastTimeCheckingSensors = millis();
   }
   
 
