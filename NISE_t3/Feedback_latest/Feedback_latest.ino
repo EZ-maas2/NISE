@@ -44,8 +44,6 @@ int motor_ix = 0;
 long long int lastTime = 0;
 
 int currentNeuronIndex = 0; // Start with the first neuron
-unsigned long lastSwitchTime = 0; // Last time the neuron was switched
-const unsigned long switchInterval = 5000; // Time in milliseconds to switch neurons (1 second)
 const double SLOW_TAU = 50;
 const double FAST_TAU = 6;
 
@@ -81,7 +79,7 @@ void set_normal_motor_pos_limits()
 
 }
 
-const double a =1.0;
+const double a = 1.0;
 /******************************************************/ 
 // Connection matrix for mutual inhibition
 struct {
@@ -207,12 +205,11 @@ void setup() {
     packetHandler->write2ByteTxRx(portHandler, motor_ix, ADDR_AX_ANGLE_LIMIT_CCW, ANGLE_LIMIT_LOW, &dxl_error);
 
     motors[i].left_neuron_id = i;
-    motors[i].right_neuron_id = i + 7; // such that for motor 1 corresponding neurons are 1 and 8, etc  
+    motors[i].right_neuron_id = i + 7; // such that for motor 1 corresponding neurons are 0 and 7, etc  
 
     // NEW STUFF
     motors[i].position_limit_cw = POS_LIMITS_CW[i];
     motors[i].position_limit_ccw = POS_LIMITS_CCW[i];
-
 
   }
 
@@ -233,19 +230,7 @@ void check_sensors()
   int sensor0 = analogRead(FL_SENSOR_PIN);
   int sensor1 = analogRead(FR_SENSOR_PIN);
   int sensor2 = analogRead(ML_SENSOR_PIN);
-  //int sensor3 = analogRead(MR_SENSOR_PIN);
-  //int sensor4 = analogRead(BL_SENSOR_PIN);
-  //int sensor5 = analogRead(BR_SENSOR_PIN);
 
-
-  Serial.print(sensor0);
-
-  Serial.print(" ,");
-  Serial.print(sensor1);
-   Serial.print(" ,");
-  Serial.print(sensor2);
-
-  Serial.println();
 
 
 
@@ -263,7 +248,7 @@ void check_sensors()
     Serial.println("Obstacle on the right");
     for (int m = 0; m < NUM_MOTORS; m++)
     // Change pos limit
-    {motors[m].position_limit_ccw = 0;}
+    {motors[m].position_limit_cw = 0;}
     reduce_cpg_amplitudes_right();
   }
 
@@ -324,24 +309,12 @@ void loop() {
 
   myTime = millis();
   
-  /* Apply input current to the neurons after a delay (5000 ms) */
- 
-//  for (int i = 0; i < NUM_NEURONS; i++) 
-//  {
-//   if (myTime > 750) 
-//   {
-//     neurons[i].inj_cur = 1;  // Inject current after the specified time
-//   } 
-//   else {
-//     neurons[i].inj_cur = 0;
-//   }
-//  }
 
  if (myTime >  750 && !IsCurrentOn)
  {
   for (int i = 0; i < NUM_NEURONS; i++) 
   {
-    neurons[i].inj_cur = 1;
+    neurons[i].inj_cur = 1.0;
   }
    IsCurrentOn = true; // ensures that we only do this once
  }
@@ -364,20 +337,23 @@ void loop() {
   // 2) Check which one is active
   // 3) Map its value to motor position
   // 4) Send this motor position to the motor
-  for (int i = 0; i < NUM_MOTORS; i++)
+
+  if (IsCurrentOn == true && myTime > 1500)
+  {
+    for (int i = 0; i < NUM_MOTORS; i++)
     {
       // motor_ix = i + 1;
-      Neuron left = neurons[motors[i].left_neuron_id]; // retrieve the left neuron of this motor
+      Neuron left =  neurons[motors[i].left_neuron_id]; // retrieve the left neuron of this motor
       Neuron right = neurons[motors[i].right_neuron_id];
 
       if (left.y > right.y)
       {
-        motors[i].goalPosition = mapFloat(left.y, 0, 1, 512, motors[i].position_limit_ccw); // 512 is a neutral position, 0 is leftmost position
+        motors[i].goalPosition = mapFloat(left.y, 0.0, 1.0, 512, motors[i].position_limit_ccw); // 512 is a neutral position, 0 is leftmost position
       }
 
       else if (right.y > left.y)
       {
-        motors[i].goalPosition = mapFloat(right.y, 0, 1, 512, motors[i].position_limit_cw); // 512 is a neutral position, 1023 is rightmost position
+        motors[i].goalPosition = mapFloat(right.y, 0.0, 1.0, 512, motors[i].position_limit_cw); // 512 is a neutral position, 1023 is rightmost position
       }
 
       else 
@@ -391,13 +367,13 @@ void loop() {
       packetHandler->write2ByteTxRx(portHandler, i+1, ADDR_AX_GOAL_POSITION, motors[i].goalPosition, &dxl_error);
       packetHandler->read2ByteTxRx(portHandler, i+1, ADDR_AX_PRESENT_POSITION, (uint16_t*)&present_position, &dxl_error);
       motors[i].presentPosition = present_position;
-      //Serial.print(motors[i].presentPosition);
-      //Serial.print(", ");
+      Serial.print(motors[i].presentPosition + i * 1000);
+      Serial.print(", ");
     }
     //Serial.print(motors[0].presentPosition);
-    //Serial.print("\n");
+    Serial.print("\n");
 
-
-
+  }
+  
   delay(20); // Delay for stability
 }
