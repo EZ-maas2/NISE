@@ -41,7 +41,6 @@ bool IsCurrentOn = false;
 
 unsigned long myTime;
 unsigned int mydelay = 1000; // ms
-int motor_ix = 0;
 long long int lastTimeCheckingSensors = 0;
 
 
