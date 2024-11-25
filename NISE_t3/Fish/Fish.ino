@@ -1,6 +1,5 @@
 #include <DynamixelSDK.h>
 #include <math.h>
-#include <algorithm>
 
 
 // ========================== NEURONS =======================
@@ -20,10 +19,9 @@ struct Neuron {
 } neurons[NUM_NEURONS];
 
 const double a = 1.0;
+const double b = 1.0;//0.95;
 
-
-
-// MAIN VERSION
+// Connection matrix for mutual inhibition
 struct {
   double y[NUM_NEURONS];
   double connectionMatrix[NUM_NEURONS][NUM_NEURONS] = {
@@ -35,12 +33,12 @@ struct {
     { 0,  0,  0,  0,  0,  a,  0,  0,  0,  0,  a,  a,  a,  0 }, // Neuron 5
     { 0,  0,  0,  0,  0,  0,  a,  0,  0,  0,  0,  a,  a,  a }, // Neuron 6
     { 0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  a,  a }, // Neuron 7
-    { a,  a,  0,  0,  0,  0,  0,  0,  a,  0,  0,  0,  0,  0 }, // Neuron 8
-    { a,  a,  a,  0,  0,  0,  0,  0,  0,  a,  0,  0,  0,  0 }, // Neuron 9
-    { 0,  a,  a,  a,  0,  0,  0,  0,  0,  0,  a,  0,  0,  0 }, // Neuron 10
-    { 0,  0,  a,  a,  a,  0,  0,  0,  0,  0,  0,  a,  0,  0 }, // Neuron 11
-    { 0,  0,  0,  a,  a,  a,  0,  0,  0,  0,  0,  0,  a,  0 }, // Neuron 12
-    { 0,  0,  0,  0,  a,  a,  a,  0,  0,  0,  0,  0,  0,  a }, // Neuron 13
+    { a,  a*b,  0,  0,  0,  0,  0,  0,  a,  0,  0,  0,  0,  0 }, // Neuron 8
+    { a,  a,  a*b,  0,  0,  0,  0,  0,  0,  a,  0,  0,  0,  0 }, // Neuron 9
+    { 0,  a,  a,  a*b,  0,  0,  0,  0,  0,  0,  a,  0,  0,  0 }, // Neuron 10
+    { 0,  0,  a,  a,  a*b,  0,  0,  0,  0,  0,  0,  a,  0,  0 }, // Neuron 11
+    { 0,  0,  0,  a,  a,  a*b,  0,  0,  0,  0,  0,  0,  a,  0 }, // Neuron 12
+    { 0,  0,  0,  0,  a,  a,  a*b,  0,  0,  0,  0,  0,  0,  a }, // Neuron 13
     { 0,  0,  0,  0,  0,  a,  a,  0,  0,  0,  0,  0,  0,  0 } // Neuron 14
   };
 } all_neurons;
@@ -63,7 +61,7 @@ double fun_adaptation(double a_i, double adaptation_tau, double y_i) {
 
 
 void update_one_neuron(struct Neuron* neuron_pointer, int neuron_index) {
-  int NUM_UPDATES = 10; // 10 
+  int NUM_UPDATES = 10;
   double step = ((double)mydelay / 1000) / NUM_UPDATES;
 
   double x_i[NUM_UPDATES], adaptation_i[NUM_UPDATES];
@@ -105,9 +103,10 @@ void update_one_neuron(struct Neuron* neuron_pointer, int neuron_index) {
 
 void update_network(void) {
 
+  int indexes[NUM_NEURONS] = {0, 7, 1, 8, 2, 9, 3, 10, 4, 11, 5, 12, 6, 13};
   for (int i = 0; i < NUM_NEURONS; i++) {
     //update_one_neuron(&neurons[i], i);
-    update_one_neuron(&neurons[i], i);
+    update_one_neuron(&neurons[indexes[i]], indexes[i]);
   }
 }
 
@@ -151,11 +150,9 @@ struct Motor {
   double presentPosition;
 } motors[NUM_MOTORS];
 
-// int POS_LIMITS_CW[NUM_MOTORS] =  {512 + 20, 512 + 125, 512 + 90, 512  + 125, 512 + 160, 512 +  195, 512 + 200}; 
-// int POS_LIMITS_CCW[NUM_MOTORS] = {512 - 20, 512 - 125, 512 - 90, 512  - 125, 512 - 160, 512 -  195, 512 - 200};
+int POS_LIMITS_CW[NUM_MOTORS] =  {512 + 5, 512 + 50, 512 + 90, 512  + 180, 512 + 160, 512 +  195, 512 + 200}; 
+int POS_LIMITS_CCW[NUM_MOTORS] = {512 - 5, 512 - 50, 512 - 90, 512  - 180, 512 - 160, 512 -  195, 512 - 200};
 
-int POS_LIMITS_CW[NUM_MOTORS] =  {512 + 12, 512 + 75, 512 + 54, 512  + 75, 512 + 96, 512 +  117, 512 + 120}; 
-int POS_LIMITS_CCW[NUM_MOTORS] = {512 - 12, 512 - 75, 512 - 54, 512  - 75, 512 - 96, 512 -  117, 512 - 120};
 
 
 // Dynamixel SDK Objects
@@ -179,8 +176,6 @@ void set_normal_motor_pos_limits()
 
 // custom mapping function to support floats
 float mapFloat(float x, float in_min, float in_max, float out_min, float out_max) {
-
-  x = std::min(0.5f, x); 
   return int((x - in_min) * (out_max - out_min) / (in_max - in_min) + out_min);
 }
 
@@ -200,8 +195,8 @@ float mapFloat(float x, float in_min, float in_max, float out_min, float out_max
 
 void check_sensors()
 {
-  double FL_SENSOR_PIN_THR = 150; // THRESHOLDS AFTER WHICH WE TAKE SOME ACTION
-  double FR_SENSOR_PIN_THR = 190;
+  double FL_SENSOR_PIN_THR = 160; // THRESHOLDS AFTER WHICH WE TAKE SOME ACTION
+  double FR_SENSOR_PIN_THR = 130;
   double ML_SENSOR_PIN_THR = 75;
   double MR_SENSOR_PIN_THR = 30;
   double BL_SENSOR_PIN_THR = 250;
@@ -362,7 +357,7 @@ int indexes[NUM_NEURONS] = {0, 7, 1, 8, 2, 9, 3, 10, 4, 11, 5, 12, 6, 13};
 
   double sum_left = 0;
   double sum_right = 0;
-  for (int i = 0; i < 7; i++)
+  for (int i = 0; i < NUM_NEURONS; i++)
   {
     if (i<8){
       sum_left +=  neurons[i].y;
@@ -371,15 +366,15 @@ int indexes[NUM_NEURONS] = {0, 7, 1, 8, 2, 9, 3, 10, 4, 11, 5, 12, 6, 13};
       sum_right += neurons[i].y;
     }
     
-    Serial.print(neurons[i].y + i);
-    Serial.print(", ");
-    Serial.print(neurons[i+7].y + i);
-    Serial.print(", ");
+    // Serial.print(neurons[neuron].y + neuron);
+    // Serial.print(", ");
+    // Serial.print(neurons[neuron+7].y + neuron);
+    // Serial.print(", ");
 
   }
-  // Serial.print(sum_left);
-  // Serial.print(", ");
-  // Serial.print(sum_right);
+  Serial.print(sum_left);
+  Serial.print(", ");
+  Serial.print(sum_right);
   Serial.println();
   
   // Convert neuron output to the motor position
@@ -392,20 +387,8 @@ int indexes[NUM_NEURONS] = {0, 7, 1, 8, 2, 9, 3, 10, 4, 11, 5, 12, 6, 13};
 
 
 
-  if (myTime < 2000){
-    for (int i =0; i < NUM_MOTORS; i++){
-
-       int present_position = 0;
-
-        // Write the goal position to the motor
-      packetHandler->write2ByteTxRx(portHandler, i+1, ADDR_AX_GOAL_POSITION, 512, &dxl_error);
-      packetHandler->read2ByteTxRx(portHandler, i+1, ADDR_AX_PRESENT_POSITION, (uint16_t*)&present_position, &dxl_error);
-      motors[i].presentPosition = present_position;
-
-    }
-  }
-
-  if (myTime > 2000){
+// {512 + 20, 512 + 125, 512 + 90, 512  + 125, 512 + 160, 512 +  195, 512 + 200}; 
+  //int bias[NUM_MOTORS] = {0, 20, 20, 30, 30, 40, 40};
     for (int i = 0; i < NUM_MOTORS; i++)
     {
       // motor_ix = i + 1;
@@ -415,13 +398,14 @@ int indexes[NUM_NEURONS] = {0, 7, 1, 8, 2, 9, 3, 10, 4, 11, 5, 12, 6, 13};
       if (left.y > right.y)
       {
         // 0.35 was the best
-        motors[i].goalPosition = mapFloat(left.y, 0.0, 0.5, 512, motors[i].position_limit_ccw); // 512 is a neutral position, 0 is leftmost position
+        motors[i].goalPosition = mapFloat(left.y, 0.0, 1.0, 512, motors[i].position_limit_ccw); // 512 is a neutral position, 0 is leftmost position
         //motors[i].goalPosition += bias[i];
+
       }
 
       else if (right.y > left.y)
       {
-        motors[i].goalPosition = mapFloat(right.y, 0.0, 0.5, 512, motors[i].position_limit_cw); // 512 is a neutral position, 1023 is rightmost position
+        motors[i].goalPosition = mapFloat(right.y, 0.0, 1.0, 512, motors[i].position_limit_cw); // 512 is a neutral position, 1023 is rightmost position
       }
 
       else 
@@ -436,9 +420,9 @@ int indexes[NUM_NEURONS] = {0, 7, 1, 8, 2, 9, 3, 10, 4, 11, 5, 12, 6, 13};
       packetHandler->read2ByteTxRx(portHandler, i+1, ADDR_AX_PRESENT_POSITION, (uint16_t*)&present_position, &dxl_error);
       motors[i].presentPosition = present_position;
 
-    }}
+    }
 
-    delay(10);
+    delay(20);
 
 
 }

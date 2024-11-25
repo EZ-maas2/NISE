@@ -154,8 +154,8 @@ struct Motor {
 // int POS_LIMITS_CW[NUM_MOTORS] =  {512 + 20, 512 + 125, 512 + 90, 512  + 125, 512 + 160, 512 +  195, 512 + 200}; 
 // int POS_LIMITS_CCW[NUM_MOTORS] = {512 - 20, 512 - 125, 512 - 90, 512  - 125, 512 - 160, 512 -  195, 512 - 200};
 
-int POS_LIMITS_CW[NUM_MOTORS] =  {512 + 12, 512 + 75, 512 + 54, 512  + 75, 512 + 96, 512 +  117, 512 + 120}; 
-int POS_LIMITS_CCW[NUM_MOTORS] = {512 - 12, 512 - 75, 512 - 54, 512  - 75, 512 - 96, 512 -  117, 512 - 120};
+int POS_LIMITS_CW[NUM_MOTORS] =  {1023, 1023, 1023, 1023, 1023, 1023, 1023}; 
+int POS_LIMITS_CCW[NUM_MOTORS] = {0, 0, 0, 0, 0, 0, 0};
 
 
 // Dynamixel SDK Objects
@@ -200,8 +200,8 @@ float mapFloat(float x, float in_min, float in_max, float out_min, float out_max
 
 void check_sensors()
 {
-  double FL_SENSOR_PIN_THR = 150; // THRESHOLDS AFTER WHICH WE TAKE SOME ACTION
-  double FR_SENSOR_PIN_THR = 190;
+  double FL_SENSOR_PIN_THR = 130; // THRESHOLDS AFTER WHICH WE TAKE SOME ACTION
+  double FR_SENSOR_PIN_THR = 130;
   double ML_SENSOR_PIN_THR = 75;
   double MR_SENSOR_PIN_THR = 30;
   double BL_SENSOR_PIN_THR = 250;
@@ -351,7 +351,7 @@ int indexes[NUM_NEURONS] = {0, 7, 1, 8, 2, 9, 3, 10, 4, 11, 5, 12, 6, 13};
 // Check Sensors every 
   if (myTime > lastTimeCheckingSensors + 500)
   {
-    check_sensors();
+    //check_sensors();
     lastTimeCheckingSensors = millis();
   }
 

@@ -151,11 +151,18 @@ struct Motor {
   double presentPosition;
 } motors[NUM_MOTORS];
 
+
+// BAD BIG AMPLITUDES
 // int POS_LIMITS_CW[NUM_MOTORS] =  {512 + 20, 512 + 125, 512 + 90, 512  + 125, 512 + 160, 512 +  195, 512 + 200}; 
 // int POS_LIMITS_CCW[NUM_MOTORS] = {512 - 20, 512 - 125, 512 - 90, 512  - 125, 512 - 160, 512 -  195, 512 - 200};
 
-int POS_LIMITS_CW[NUM_MOTORS] =  {512 + 12, 512 + 75, 512 + 54, 512  + 75, 512 + 96, 512 +  117, 512 + 120}; 
-int POS_LIMITS_CCW[NUM_MOTORS] = {512 - 12, 512 - 75, 512 - 54, 512  - 75, 512 - 96, 512 -  117, 512 - 120};
+
+// GOOD SMALL AMPLITUDES
+int POS_LIMITS_CW[NUM_MOTORS] =  {512 + 12, 512 + 75, 512 + 54, 512  + 30, 512 + 56, 512 +  30, 512 + 20};
+int POS_LIMITS_CCW[NUM_MOTORS] = {512 - 12, 512 - 75, 512 - 54, 512  - 30, 512 - 56, 512 -  30, 512 - 20};
+
+int REDUCED_POS_LIMITS_CW[NUM_MOTORS] =  {512 + 5, 512 + 75, 512 + 34, 512  + 15, 512 + 36, 512 +  30, 512 + 5}; 
+int REDUCED_POS_LIMITS_CCW[NUM_MOTORS] = {512 - 5, 512 - 75, 512 - 34, 512  - 15, 512 - 36, 512 -  30, 512 - 5};
 
 
 // Dynamixel SDK Objects
@@ -179,8 +186,6 @@ void set_normal_motor_pos_limits()
 
 // custom mapping function to support floats
 float mapFloat(float x, float in_min, float in_max, float out_min, float out_max) {
-
-  x = std::min(0.5f, x); 
   return int((x - in_min) * (out_max - out_min) / (in_max - in_min) + out_min);
 }
 
@@ -195,7 +200,7 @@ float mapFloat(float x, float in_min, float in_max, float out_min, float out_max
 #define MR_SENSOR_PIN A3 // Rear Right Flex Sensor
 #define BL_SENSOR_PIN A4 
 #define BR_SENSOR_PIN A5
-
+bool check_sensor = false;
 // --------------------- FUNCTIONS -------------------------
 
 void check_sensors()
@@ -209,28 +214,29 @@ void check_sensors()
 
   int sensor0 = analogRead(FL_SENSOR_PIN);
   int sensor1 = analogRead(FR_SENSOR_PIN);
-  int sensor2 = analogRead(ML_SENSOR_PIN);
+  int sensor4 = analogRead(BL_SENSOR_PIN);
+  int sensor5 = analogRead(BR_SENSOR_PIN);
 
 
-  if (sensor0 < FL_SENSOR_PIN_THR) 
+  if (sensor0 < FL_SENSOR_PIN_THR && check_sensor == false) 
   { // OBSTACLE ON THE LEFT
     Serial.println("Obstacle on the left");
     // Change pos limit
-     for (int m = 0; m < NUM_MOTORS; m++)
-     {motors[m].position_limit_cw = 1023;}
-
-     //reduce_cpg_amplitudes_left();
+    for (int m = 0; m < NUM_MOTORS; m++)
+      {motors[m].position_limit_cw = 1023;}
+      //check_sensor = true;
   }
 
-  else if (sensor1 < FR_SENSOR_PIN_THR) 
+  else if (sensor1 < FR_SENSOR_PIN_THR && check_sensor == false) 
   { // OBSTACLE ON  THE RIGHT
-    Serial.println("Obstacle on the right");
+    //Serial.println("Obstacle on the right");
     for (int m = 0; m < NUM_MOTORS; m++)
     // Change pos limit
-    {motors[m].position_limit_ccw = 0;}
-    //reduce_cpg_amplitudes_right();
+      {motors[m].position_limit_ccw = 0;}
+     // check_sensor = true;
+    
   }
-
+  
   else if (sensor0 >= FL_SENSOR_PIN_THR && sensor1 >= FR_SENSOR_PIN_THR)
   {
     set_normal_motor_pos_limits();
@@ -239,35 +245,16 @@ void check_sensors()
 
 
 
+
 // ------------------ Functions --------------------------
-void reduce_cpg_amplitudes_left()
+void reduce_cpg_all_amplitudes()
 {
-  // if right  sensor is triggered, we reduce amplitudes of all the right neurons
-  for (int ix = 0; ix < NUM_NEURONS; ix++){
-    if(ix > 7)
-    {
-      neurons[ix].y = neurons[ix].y * 0.5;
-    }
-  }
-}
-
-void reduce_cpg_amplitudes_right(){
-  // if left  sensor is triggered, we reduce amplitudes of all the left neurons
-
-  for (int ix = 0; ix < NUM_NEURONS; ix++){
-    if(ix < 8)
-    {
-      neurons[ix].y = neurons[ix].y * 0.5;
-    }
-  }}
-
-
-void reduce_cpg_all_amplitudes(float factor)
-{
-  for (int ix = 0; ix < NUM_NEURONS; ix++)
+  for (int ix = 1; ix < NUM_MOTORS; ix++)
   {
-  neurons[ix].y = neurons[ix].y * factor;  
+  motors[ix].position_limit_ccw = REDUCED_POS_LIMITS_CCW[ix];
+  motors[ix].position_limit_cw = REDUCED_POS_LIMITS_CW[ix];
   }
+  check_sensor = false;
 }
 
 
@@ -359,7 +346,11 @@ int indexes[NUM_NEURONS] = {0, 7, 1, 8, 2, 9, 3, 10, 4, 11, 5, 12, 6, 13};
 
   // CPG neurons update
   update_network();
-
+  
+  // if (check_sensor == true)
+  // {
+  //   reduce_cpg_all_amplitudes();
+  // }
   double sum_left = 0;
   double sum_right = 0;
   for (int i = 0; i < 7; i++)
@@ -415,13 +406,25 @@ int indexes[NUM_NEURONS] = {0, 7, 1, 8, 2, 9, 3, 10, 4, 11, 5, 12, 6, 13};
       if (left.y > right.y)
       {
         // 0.35 was the best
-        motors[i].goalPosition = mapFloat(left.y, 0.0, 0.5, 512, motors[i].position_limit_ccw); // 512 is a neutral position, 0 is leftmost position
-        //motors[i].goalPosition += bias[i];
+        float left_y = left.y;
+        if (check_sensor == true){
+          reduce_cpg_all_amplitudes();
+          //right_y -= 0.3;
+          //check_sensor = false;
+        }
+        motors[i].goalPosition = mapFloat(left_y, 0.0, 0.5, 512, motors[i].position_limit_ccw); // 512 is a neutral position, 0 is leftmost position
+     
       }
 
       else if (right.y > left.y)
       {
-        motors[i].goalPosition = mapFloat(right.y, 0.0, 0.5, 512, motors[i].position_limit_cw); // 512 is a neutral position, 1023 is rightmost position
+        float right_y = right.y;
+        if (check_sensor == true){
+          reduce_cpg_all_amplitudes();
+          //right_y -= 0.3;
+          //check_sensor = false;
+        }
+        motors[i].goalPosition = mapFloat(right_y, 0.0, 0.5, 512, motors[i].position_limit_cw); // 512 is a neutral position, 1023 is rightmost position
       }
 
       else 
