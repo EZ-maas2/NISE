@@ -157,6 +157,16 @@ struct Motor {
 // int POS_LIMITS_CCW[NUM_MOTORS] = {512 - 20, 512 - 125, 512 - 90, 512  - 125, 512 - 160, 512 -  195, 512 - 200};
 
 
+//TRY 1
+
+int POS_LIMIT_CW[NUM_MOTORS] = {512 + 20, 512 + 80, 512 + 60, 512 + 80, 512 + 60, 512 + 80, 512 + 100};
+int POS_LIMIT_CCW[NUM_MOTORS] = {512 - 20, 512 - 80, 512 - 60, 512 - 80, 512 - 60, 512 - 80, 512 - 100};
+
+// TRY REDUCED
+int REDUCED_POS_LIMIT_CW[NUM_MOTORS] = {512 + 10, 512 + 40, 512 + 30, 512 + 40, 512 + 30, 512 + 40, 512 + 50};
+int REDUCED_POS_LIMIT_CCW[NUM_MOTORS] = {512 - 10, 512 - 40, 512 - 30, 512 - 40, 512 - 30, 512 - 40, 512 - 50};
+
+
 // GOOD SMALL AMPLITUDES
 int POS_LIMITS_CW[NUM_MOTORS] =  {512 + 12, 512 + 75, 512 + 54, 512  + 30, 512 + 56, 512 +  30, 512 + 20};
 int POS_LIMITS_CCW[NUM_MOTORS] = {512 - 12, 512 - 75, 512 - 54, 512  - 30, 512 - 56, 512 -  30, 512 - 20};
@@ -200,7 +210,6 @@ float mapFloat(float x, float in_min, float in_max, float out_min, float out_max
 #define MR_SENSOR_PIN A3 // Rear Right Flex Sensor
 #define BL_SENSOR_PIN A4 
 #define BR_SENSOR_PIN A5
-bool check_sensor = false;
 // --------------------- FUNCTIONS -------------------------
 
 void check_sensors()
@@ -218,52 +227,54 @@ void check_sensors()
   int sensor5 = analogRead(BR_SENSOR_PIN);
 
 
-  if (sensor0 < FL_SENSOR_PIN_THR && check_sensor == false) 
+  if (sensor0 < FL_SENSOR_PIN_THR) 
   { // OBSTACLE ON THE LEFT
     Serial.println("Obstacle on the left");
     // Change pos limit
     for (int m = 0; m < NUM_MOTORS; m++)
       {motors[m].position_limit_cw = 1023;}
-      //check_sensor = true;
+     
   }
+  
 
-  else if (sensor1 < FR_SENSOR_PIN_THR && check_sensor == false) 
+  else if (sensor1 < FR_SENSOR_PIN_THR) 
   { // OBSTACLE ON  THE RIGHT
-    //Serial.println("Obstacle on the right");
+    Serial.println("Obstacle on the right");
     for (int m = 0; m < NUM_MOTORS; m++)
     // Change pos limit
       {motors[m].position_limit_ccw = 0;}
-     // check_sensor = true;
     
   }
+
+  else // only executes if neither of front sensors are active
+  {
+    if (sensor4 < BL_SENSOR_PIN_THR || sensor5 < BR_SENSOR_PIN_THR) // front sensors are more important: if they are active, this is ignored
+  {
+    reduce_all_amplitudes();
+  }
   
-  else if (sensor0 >= FL_SENSOR_PIN_THR && sensor1 >= FR_SENSOR_PIN_THR)
+  if (sensor0 >= FL_SENSOR_PIN_THR && sensor1 >= FR_SENSOR_PIN_THR && sensor4 >= BL_SENSOR_PIN_THR && sensor5 >= BR_SENSOR_PIN_THR)
   {
     set_normal_motor_pos_limits();
   }
+  }
+
 }
 
 
 
 
 // ------------------ Functions --------------------------
-void reduce_cpg_all_amplitudes()
+void reduce_all_amplitudes()
 {
+  // reduces all body (not head) motor position limits
   for (int ix = 1; ix < NUM_MOTORS; ix++)
   {
   motors[ix].position_limit_ccw = REDUCED_POS_LIMITS_CCW[ix];
   motors[ix].position_limit_cw = REDUCED_POS_LIMITS_CW[ix];
   }
-  check_sensor = false;
 }
 
-
-void change_adaptation_tau(double new_tau){
-  for (int ix = 0; ix < NUM_NEURONS; ix++)
-  {
-  neurons[ix].adaptation_tau = new_tau;
-  }
-}
 
 // =========================================================
 
@@ -347,10 +358,7 @@ int indexes[NUM_NEURONS] = {0, 7, 1, 8, 2, 9, 3, 10, 4, 11, 5, 12, 6, 13};
   // CPG neurons update
   update_network();
   
-  // if (check_sensor == true)
-  // {
-  //   reduce_cpg_all_amplitudes();
-  // }
+  
   double sum_left = 0;
   double sum_right = 0;
   for (int i = 0; i < 7; i++)
@@ -405,26 +413,14 @@ int indexes[NUM_NEURONS] = {0, 7, 1, 8, 2, 9, 3, 10, 4, 11, 5, 12, 6, 13};
 
       if (left.y > right.y)
       {
-        // 0.35 was the best
-        float left_y = left.y;
-        if (check_sensor == true){
-          reduce_cpg_all_amplitudes();
-          //right_y -= 0.3;
-          //check_sensor = false;
-        }
-        motors[i].goalPosition = mapFloat(left_y, 0.0, 0.5, 512, motors[i].position_limit_ccw); // 512 is a neutral position, 0 is leftmost position
+        motors[i].goalPosition = mapFloat(left.y, 0.0, 0.5, 512, motors[i].position_limit_ccw); // 512 is a neutral position, 0 is leftmost position
      
       }
 
       else if (right.y > left.y)
       {
-        float right_y = right.y;
-        if (check_sensor == true){
-          reduce_cpg_all_amplitudes();
-          //right_y -= 0.3;
-          //check_sensor = false;
-        }
-        motors[i].goalPosition = mapFloat(right_y, 0.0, 0.5, 512, motors[i].position_limit_cw); // 512 is a neutral position, 1023 is rightmost position
+        
+        motors[i].goalPosition = mapFloat(right.y, 0.0, 0.5, 512, motors[i].position_limit_cw); // 512 is a neutral position, 1023 is rightmost position
       }
 
       else 
