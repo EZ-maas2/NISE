@@ -159,17 +159,17 @@ struct Motor {
 
 //TRY 1
 
-int POS_LIMIT_CW[NUM_MOTORS] = {512 + 20, 512 + 80, 512 + 60, 512 + 80, 512 + 60, 512 + 80, 512 + 100};
-int POS_LIMIT_CCW[NUM_MOTORS] = {512 - 20, 512 - 80, 512 - 60, 512 - 80, 512 - 60, 512 - 80, 512 - 100};
+int POS_LIMITS_CW[NUM_MOTORS]  = {512 + 20, 512 + 80, 512 + 60, 512 + 80, 512 + 60, 512 + 80, 512 + 100};
+int POS_LIMITS_CCW[NUM_MOTORS] = {512 - 20, 512 - 80, 512 - 60, 512 - 80, 512 - 60, 512 - 80, 512 - 100};
 
-// TRY REDUCED
-int REDUCED_POS_LIMIT_CW[NUM_MOTORS] = {512 + 10, 512 + 40, 512 + 30, 512 + 40, 512 + 30, 512 + 40, 512 + 50};
-int REDUCED_POS_LIMIT_CCW[NUM_MOTORS] = {512 - 10, 512 - 40, 512 - 30, 512 - 40, 512 - 30, 512 - 40, 512 - 50};
+// // TRY REDUCED
+// int REDUCED_POS_LIMIT_CW[NUM_MOTORS] = {512 + 10, 512 + 40, 512 + 30, 512 + 40, 512 + 30, 512 + 40, 512 + 50};
+// int REDUCED_POS_LIMIT_CCW[NUM_MOTORS] = {512 - 10, 512 - 40, 512 - 30, 512 - 40, 512 - 30, 512 - 40, 512 - 50};
 
 
-// GOOD SMALL AMPLITUDES
-int POS_LIMITS_CW[NUM_MOTORS] =  {512 + 12, 512 + 75, 512 + 54, 512  + 30, 512 + 56, 512 +  30, 512 + 20};
-int POS_LIMITS_CCW[NUM_MOTORS] = {512 - 12, 512 - 75, 512 - 54, 512  - 30, 512 - 56, 512 -  30, 512 - 20};
+// // GOOD SMALL AMPLITUDES
+// int POS_LIMITS_CW[NUM_MOTORS] =  {512 + 12, 512 + 75, 512 + 54, 512  + 30, 512 + 56, 512 +  30, 512 + 20};
+// int POS_LIMITS_CCW[NUM_MOTORS] = {512 - 12, 512 - 75, 512 - 54, 512  - 30, 512 - 56, 512 -  30, 512 - 20};
 
 int REDUCED_POS_LIMITS_CW[NUM_MOTORS] =  {512 + 5, 512 + 75, 512 + 34, 512  + 15, 512 + 36, 512 +  30, 512 + 5}; 
 int REDUCED_POS_LIMITS_CCW[NUM_MOTORS] = {512 - 5, 512 - 75, 512 - 34, 512  - 15, 512 - 36, 512 -  30, 512 - 5};
@@ -214,8 +214,8 @@ float mapFloat(float x, float in_min, float in_max, float out_min, float out_max
 
 void check_sensors()
 {
-  double FL_SENSOR_PIN_THR = 150; // THRESHOLDS AFTER WHICH WE TAKE SOME ACTION
-  double FR_SENSOR_PIN_THR = 190;
+  double FL_SENSOR_PIN_THR = 395; // THRESHOLDS AFTER WHICH WE TAKE SOME ACTION
+  double FR_SENSOR_PIN_THR = 365;
   double ML_SENSOR_PIN_THR = 75;
   double MR_SENSOR_PIN_THR = 30;
   double BL_SENSOR_PIN_THR = 250;
@@ -223,8 +223,8 @@ void check_sensors()
 
   int sensor0 = analogRead(FL_SENSOR_PIN);
   int sensor1 = analogRead(FR_SENSOR_PIN);
-  int sensor4 = analogRead(BL_SENSOR_PIN);
-  int sensor5 = analogRead(BR_SENSOR_PIN);
+  //int sensor4 = analogRead(BL_SENSOR_PIN);
+  //int sensor5 = analogRead(BR_SENSOR_PIN);
 
 
   if (sensor0 < FL_SENSOR_PIN_THR) 
@@ -246,18 +246,18 @@ void check_sensors()
     
   }
 
-  else // only executes if neither of front sensors are active
-  {
-    if (sensor4 < BL_SENSOR_PIN_THR || sensor5 < BR_SENSOR_PIN_THR) // front sensors are more important: if they are active, this is ignored
-  {
-    reduce_all_amplitudes();
-  }
+  //else // only executes if neither of front sensors are active
+  //{
+  //   if (sensor4 < BL_SENSOR_PIN_THR || sensor5 < BR_SENSOR_PIN_THR) // front sensors are more important: if they are active, this is ignored
+  // {
+  //   reduce_all_amplitudes();
+  // }
   
-  if (sensor0 >= FL_SENSOR_PIN_THR && sensor1 >= FR_SENSOR_PIN_THR && sensor4 >= BL_SENSOR_PIN_THR && sensor5 >= BR_SENSOR_PIN_THR)
+  if (sensor0 >= FL_SENSOR_PIN_THR && sensor1 >= FR_SENSOR_PIN_THR) //&& sensor4 >= BL_SENSOR_PIN_THR && sensor5 >= BR_SENSOR_PIN_THR)
   {
     set_normal_motor_pos_limits();
   }
-  }
+  //}
 
 }
 
@@ -347,7 +347,7 @@ int indexes[NUM_NEURONS] = {0, 7, 1, 8, 2, 9, 3, 10, 4, 11, 5, 12, 6, 13};
  }
 
 // Check Sensors every 
-  if (myTime > lastTimeCheckingSensors + 500)
+  if (myTime > lastTimeCheckingSensors + 400)
   {
     check_sensors();
     lastTimeCheckingSensors = millis();
